@@ -25,7 +25,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
       - name: Build debug APK
         run: ./gradlew assembleLawnWithQuickstepGithubDebug
-      - name: Publish pre-release
+      - name: Publish release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -35,6 +35,6 @@ jobs:
           cp "$APK" "Lawnchair-glass-drawer-${TAG}.apk"
           gh release create "$TAG" "Lawnchair-glass-drawer-${TAG}.apk" \
             --target "$GITHUB_SHA" \
-            --prerelease \
+            --latest \
             --title "Glass drawer dev build #${GITHUB_RUN_NUMBER}" \
             --notes "Debug build of branch glass-dev at ${GITHUB_SHA}."
