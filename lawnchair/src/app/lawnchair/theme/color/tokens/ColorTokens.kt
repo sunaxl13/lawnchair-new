@@ -106,9 +106,32 @@ object ColorTokens {
         Accent1_100.setAlpha(0.15f),
     )
 
+    // Glass drawer: Pixel Launcher 17-style translucent sheet. Every tone comes from the Monet
+    // palette, so the panel follows the wallpaper colors the same way the system shade panels do.
+    // Needs to be declared before the tokens below that reuse it.
+    @JvmField val AllAppsGlassSurface = DayNightColorToken(
+        Accent2_100.setLStar(94.0),
+        Accent1_700.setLStar(27.0),
+    )
+
+    /** Hairline border around the glass sheet. */
+    @JvmField val AllAppsGlassEdge = DayNightColorToken(
+        StaticColorToken(0x8CFFFFFF),
+        StaticColorToken(0x29FFFFFF),
+    )
+
+    /** Light catch along the top rim of the glass sheet. */
+    @JvmField val AllAppsGlassHighlight = StaticColorToken(0x38FFFFFF)
+
+    /** Translucent container used by the search pill and the grouped search result cards. */
+    @JvmField val GlassContainer = DayNightColorToken(
+        Neutral1_0.setAlpha(0.6f),
+        Accent1_800.setLStar(17.0).setAlpha(0.55f),
+    )
+
     @JvmField val GroupHighlight = Surface
 
-    @JvmField val GroupHighlightBlur = Surface.setAlpha(0.54f)
+    @JvmField val GroupHighlightBlur = GlassContainer
 
     @JvmField val OverviewScrimColor = DayNightColorToken(Neutral2_100.setLStar(87.0), Neutral1_800)
 
@@ -133,7 +156,7 @@ object ColorTokens {
 
     @JvmField val SearchboxHighlight = DayNightColorToken(Neutral2_600.setLStar(98.0), Neutral1_800)
 
-    @JvmField val SearchboxHighlightBlur = SearchboxHighlight.setAlpha(.54f)
+    @JvmField val SearchboxHighlightBlur = GlassContainer
 
     @JvmField val DotColor = Accent3_200
 

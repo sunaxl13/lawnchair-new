@@ -212,6 +212,10 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
     private int mBottomSheetBackgroundColorBlurFallback;
     private int mBottomSheetBackgroundColorOverBlur;
     private int mBottomSheetBackgroundColorLegacy;
+    // LC-Note: Glass sheet rim, drawn on top of the translucent panel when blur is active.
+    private final Paint mGlassEdgePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private int mGlassEdgeColor;
+    private int mGlassHighlightColor;
     private int mTabsProtectionAlpha;
     @Nullable private AllAppsTransitionController mAllAppsTransitionController;
 
@@ -359,10 +363,17 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         };
 
         if (Flags.allAppsBlur()) {
-            int layerFg = ColorTokens.shade_panel_fg_color.resolveColor(getContext());
-            int layerBg = ColorTokens.shade_panel_bg_color.resolveColor(getContext());
-            mBottomSheetBackgroundColorOverBlur = ColorUtils.compositeColors(layerFg, layerBg);
+            // LC-Note: AOSP composites the shade panel fg over bg here. We use a Monet-tinted
+            // glass surface instead (a bit more chroma, so it still reads as colored once the
+            // blur behind it has washed the wallpaper out). Alpha comes from the drawer opacity
+            // preference, see updateBottomSheetBackgroundColor().
+            mBottomSheetBackgroundColorOverBlur = ColorTokens.AllAppsGlassSurface.resolveColor(getContext());
             mBottomSheetBackgroundColorBlurFallback = ColorTokens.BottomSheetBackgroundColorBlurFallback.resolveColor(getContext());
+
+            mGlassEdgeColor = ColorTokens.AllAppsGlassEdge.resolveColor(getContext());
+            mGlassHighlightColor = ColorTokens.AllAppsGlassHighlight.resolveColor(getContext());
+            mGlassEdgePaint.setStyle(Paint.Style.STROKE);
+            mGlassEdgePaint.setStrokeWidth(getResources().getDisplayMetrics().density);
         }
 
         mBottomSheetBackgroundColorLegacy = ColorTokens.SurfaceDimColor.resolveColor(getContext());
@@ -1001,6 +1012,11 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
             defaultColor = mBottomSheetBackgroundColorOverBlur;
         }
         int newColor = LawnchairUtilsKt.getAllAppsBackgroundColor(mActivityContext, defaultColor);
+        if (Flags.allAppsBlur() && !blurEnabled) {
+            // LC-Note: The glass look depends on the blur behind it. Without it (battery saver,
+            // "reduce blur effects") keep the panel mostly opaque, the way Pixel's fallback does.
+            newColor = ColorUtils.setAlphaComponent(newColor, Math.max(Color.alpha(newColor), 235));
+        }
         if (mCachedBottomSheetBgColor != newColor) {
             mCachedBottomSheetBgColor = newColor;
             return true;
@@ -1010,6 +1026,32 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
 
     boolean isBackgroundBlurEnabled() {
         return Flags.allAppsBlur() && mActivityContext.isAllAppsBackgroundBlurEnabled();
+    }
+
+    /**
+     * LC-Note: Hairline border plus a light catch along the top rim of the glass sheet.
+     * Expects {@link #mTmpRectF} to still hold the panel bounds from the fill that was just drawn,
+     * and replaces its contents.
+     */
+    private void drawGlassEdge(Canvas canvas) {
+        float stroke = mGlassEdgePaint.getStrokeWidth();
+        // Inset by half the stroke so the line sits inside the panel instead of bleeding out.
+        mTmpRectF.inset(stroke / 2f, stroke / 2f);
+        mTmpPath.reset();
+        mTmpPath.addRoundRect(mTmpRectF, mBottomSheetCornerRadii, Direction.CW);
+
+        mGlassEdgePaint.setColor(mGlassEdgeColor);
+        canvas.drawPath(mTmpPath, mGlassEdgePaint);
+
+        // Second, brighter line one stroke lower, clipped to the rounded top so it reads as light
+        // catching the upper rim rather than a second border.
+        canvas.save();
+        canvas.clipRect(mTmpRectF.left, mTmpRectF.top, mTmpRectF.right,
+                mTmpRectF.top + mBottomSheetCornerRadii[0]);
+        canvas.translate(0, stroke);
+        mGlassEdgePaint.setColor(mGlassHighlightColor);
+        canvas.drawPath(mTmpPath, mGlassEdgePaint);
+        canvas.restore();
     }
 
     /**
@@ -1685,6 +1727,10 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
             mTmpPath.reset();
             mTmpPath.addRoundRect(mTmpRectF, mBottomSheetCornerRadii, Direction.CW);
             canvas.drawPath(mTmpPath, mHeaderPaint);
+
+            if (isBackgroundBlurEnabled()) {
+                drawGlassEdge(canvas);
+            }
 
             // When the background panel is blurred (or fallback), we don't add header protection.
             // TODO (b/414671116): Apply header protection whenever search bar is focused.
