@@ -190,8 +190,11 @@ class AllAppsSearchInput(context: Context, attrs: AttributeSet?) :
                     ColorTokens.SearchboxHighlight.resolveColor(context)
                 }
 
+                // The QSB style replaces the color's own alpha with backgroundAlpha, so carry the
+                // glass container's translucency through it. Without blur the color is opaque.
+                val restingAlpha = (backgroundColor ushr 24) * 100 / 255
                 val backgroundAlpha by animateIntAsState(
-                    if (isFocused || !queryEmpty) 0 else 100,
+                    if (isFocused || !queryEmpty) 0 else restingAlpha,
                 )
 
                 // Ignore other theme attributes to preserve existing behavior
